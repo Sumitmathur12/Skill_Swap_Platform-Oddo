@@ -1,4 +1,5 @@
-"use client";
+//app/register/page.tsx
+'use client'
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const [skillsOffered, setSkillsOffered] = useState<string[]>([]);
   const [skillsWanted, setSkillsWanted] = useState<string[]>([]);
+  const [error, setError] = useState("");
 
   const [formData, setFormData] = useState({
     name: "",
@@ -43,10 +45,40 @@ export default function RegisterPage() {
     }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert("Registered successfully! Now login.");
-    router.push("/login");
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const payload = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      location: formData.location,
+      availability: formData.availability,
+      profileType: formData.profileType,
+      skillsOffered,
+      skillsWanted,
+      profilePhoto: '', // Optional for now
+    }
+
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        alert('Registered successfully!')
+        router.push('/login')
+      } else {
+        alert(data.message || 'Registration failed')
+      }
+    } catch (err) {
+      console.error('Registration error:', err)
+      alert('Something went wrong.')
+    }
   };
 
   return (
@@ -55,6 +87,7 @@ export default function RegisterPage() {
         <h2 className="text-2xl font-bold text-center mb-4 text-white">
           Register
         </h2>
+        {error && <p className="text-red-500 text-center">{error}</p>}
         <form onSubmit={handleRegister} className="space-y-4">
           <input
             name="name"

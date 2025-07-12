@@ -1,31 +1,62 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
+import { useSession, signOut } from 'next-auth/react'
+
+interface UserProfile {
+  name: string
+  location: string
+  skillsOffered: string[]
+  skillsWanted: string[]
+  availability: string
+  profileType: string
+  profilePhoto: string
+  [key: string]: any
+}
 
 export default function UserProfileEdit() {
-  const [profile, setProfile] = useState({
-    name: 'Shivam',
-    email: 'shivam@example.com', // temporary until auth is added
-    location: 'Delhi, India',
-    skillsOffered: ['Graphic Design', 'Video Editing', 'Photoshop'],
-    skillsWanted: ['Python', 'JavaScript', 'Manager'],
-    availability: 'weekends',
+  const { data: session } = useSession()
+  const [profile, setProfile] = useState<UserProfile>({
+    name: '',
+    location: '',
+    skillsOffered: [],
+    skillsWanted: [],
+    availability: '',
     profileType: 'public',
     profilePhoto: '',
   })
-
-  const [originalProfile, setOriginalProfile] = useState(profile)
+  const [originalProfile, setOriginalProfile] = useState<UserProfile | null>(null)
   const [newSkill, setNewSkill] = useState({ offered: '', wanted: '' })
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (!session?.user?.email) return
+
+      const res = await fetch(`/api/userProfile?email=${session.user.email}`)
+      const data = await res.json()
+
+      if (data.success) {
+        setProfile(data.data)
+        setOriginalProfile(data.data)
+      }
+    }
+
+    fetchUser()
+  }, [session])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProfile({ ...profile, [e.target.name]: e.target.value })
+  }
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setProfile({ ...profile, [e.target.name]: e.target.value })
   }
 
   const handleRemoveSkill = (type: 'skillsOffered' | 'skillsWanted', skill: string) => {
     setProfile({
       ...profile,
-      [type]: profile[type].filter(s => s !== skill),
+      [type]: profile[type].filter((s: string) => s !== skill),
     })
   }
 
@@ -49,7 +80,7 @@ export default function UserProfileEdit() {
 
   const handleSave = async () => {
     try {
-      const res = await fetch('/api/user/profile', {
+      const res = await fetch('/api/userProfile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(profile),
@@ -69,11 +100,25 @@ export default function UserProfileEdit() {
   }
 
   const handleDiscard = () => {
-    setProfile(originalProfile)
+    if (originalProfile) {
+      setProfile(originalProfile)
+    }
   }
 
+  if (!profile) return <p className="text-center text-white">Loading profile...</p>
+
   return (
-    <div className="p-8 max-w-4xl mx-auto">
+    <div className="relative p-8 pt-20 max-w-4xl mx-auto">
+      {/* Logout Button */}
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          onClick={() => signOut({ callbackUrl: '/' })}
+          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded"
+        >
+          Logout
+        </button>
+      </div>
+
       {/* Save / Discard Buttons */}
       <div className="flex justify-end mb-6 space-x-4">
         <button onClick={handleSave} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
@@ -94,7 +139,7 @@ export default function UserProfileEdit() {
               name="name"
               value={profile.name}
               onChange={handleChange}
-              className="w-full border rounded px-3 py-2 text-shadow-gray-400"
+              className="w-full border rounded px-3 py-2 bg-gray-800"
             />
 
             <label className="block font-medium">Location</label>
@@ -102,12 +147,12 @@ export default function UserProfileEdit() {
               name="location"
               value={profile.location}
               onChange={handleChange}
-              className="w-full border rounded px-3 py-2 text-shadow-gray-400"
+              className="w-full border rounded px-3 py-2 bg-gray-800"
             />
 
             <label className="block font-medium">Skills Offered</label>
             <div className="flex flex-wrap gap-2">
-              {profile.skillsOffered.map(skill => (
+              {profile.skillsOffered.map((skill) => (
                 <span key={skill} className="bg-yellow-200 text-yellow-900 px-3 py-1 rounded-full flex items-center">
                   {skill}
                   <button
@@ -123,9 +168,9 @@ export default function UserProfileEdit() {
               <input
                 type="text"
                 value={newSkill.offered}
-                onChange={e => setNewSkill({ ...newSkill, offered: e.target.value })}
+                onChange={(e) => setNewSkill({ ...newSkill, offered: e.target.value })}
                 placeholder="Add skill"
-                className="flex-1 border rounded px-2 py-1 text-shadow-gray-400"
+                className="flex-1 border rounded px-2 py-1 bg-gray-800"
               />
               <button
                 onClick={() => {
@@ -143,15 +188,15 @@ export default function UserProfileEdit() {
               name="availability"
               value={profile.availability}
               onChange={handleChange}
-              className="w-full border rounded px-3 py-2 text-shadow-gray-400"
+              className="w-full border rounded px-3 py-2 bg-gray-800"
             />
 
-            <label className="block font-medium mt-4">Profile</label>
+            <label className="block font-medium mt-4">Profile Type</label>
             <select
               name="profileType"
               value={profile.profileType}
-              onChange={handleChange}
-              className="w-full border rounded px-3 py-2 text-shadow-gray-400"
+              onChange={handleSelectChange}
+              className="w-full border rounded px-3 py-2 bg-gray-800"
             >
               <option value="public">Public</option>
               <option value="private">Private</option>
@@ -162,7 +207,7 @@ export default function UserProfileEdit() {
           <div className="flex-1 space-y-3">
             <label className="block font-medium">Skills Wanted</label>
             <div className="flex flex-wrap gap-2">
-              {profile.skillsWanted.map(skill => (
+              {profile.skillsWanted.map((skill) => (
                 <span key={skill} className="bg-blue-200 text-blue-900 px-3 py-1 rounded-full flex items-center">
                   {skill}
                   <button
@@ -178,9 +223,9 @@ export default function UserProfileEdit() {
               <input
                 type="text"
                 value={newSkill.wanted}
-                onChange={e => setNewSkill({ ...newSkill, wanted: e.target.value })}
+                onChange={(e) => setNewSkill({ ...newSkill, wanted: e.target.value })}
                 placeholder="Add skill"
-                className="flex-1 border rounded px-2 py-1 text-shadow-gray-400"
+                className="flex-1 border rounded px-2 py-1 bg-gray-800"
               />
               <button
                 onClick={() => {
